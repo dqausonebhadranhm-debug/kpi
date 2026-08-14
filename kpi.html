@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AAM-SC Unified Indicator Portal & Dashboard</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- SheetJS for Excel Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .header-box { background: linear-gradient(135deg, #0d6efd, #004085); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; position: relative; }
+        .nav-pills .nav-link.active { background-color: #0d6efd; font-weight: bold; }
+        .nav-pills .nav-link { color: #0d6efd; background-color: #fff; font-weight: 500; border: 1px solid #0d6efd; }
+        .table-responsive { background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 15px; }
+        .stat-card { border-radius: 10px; padding: 20px; color: white; text-align: center; }
+        .bg-submitted { background-color: #198754; }
+        .bg-pending { background-color: #dc3545; }
+        .bg-total { background-color: #0d6efd; }
+        .btn-custom { min-width: 130px; }
+        
+        /* Login Card Styling */
+        .login-container { max-width: 480px; margin: 80px auto; }
+        .login-card { border: none; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.15); background: white; }
+        .login-header { background: linear-gradient(135deg, #0d6efd, #004085); color: white; border-top-left-radius: 12px; border-top-right-radius: 12px; padding: 25px; text-align: center; }
+        .role-btn-group .btn-check:checked + .btn-outline-primary { background-color: #0d6efd; color: white; }
+        .user-info-badge { position: absolute; right: 20px; top: 20px; text-align: right; }
+    </style>
+</head>
+<body>
+
+<!-- ================= LOGIN SECTION ================= -->
+<div id="loginSection" class="container">
+    <div class="login-container">
+        <div class="card login-card">
+            <div class="login-header">
+                <h4>Ayushman Arogya Mandir</h4>
+                <p class="mb-0 small">AAM-SC Performance Portal Login</p>
+            </div>
+            <div class="card-body p-4">
+                <form id="loginForm" onsubmit="handleLogin(event)">
+                    
+                    <label class="form-label fw-bold mb-2">Select Login Role:</label>
+                    <div class="btn-group w-100 mb-4 role-btn-group" role="group">
+                        <input type="radio" class="btn-check" name="loginRole" id="roleFacility" value="facility" checked onchange="toggleRoleFields()">
+                        <label class="btn btn-outline-primary py-2" for="roleFacility">🏥 Facility (User)</label>
+
+                        <input type="radio" class="btn-check" name="loginRole" id="roleAdmin" value="admin" onchange="toggleRoleFields()">
+                        <label class="btn btn-outline-primary py-2" for="roleAdmin">👨‍💼 Admin Login</label>
+                    </div>
+
+                    <!-- Facility Login Fields -->
+                    <div id="facilityLoginFields">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Select Block <span class="text-danger">*</span></label>
+                            <select id="loginBlock" class="form-select" onchange="onLoginBlockChange()">
+                                <option value="">-- Choose Block --</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Select Subcenter (AAM-SC) <span class="text-danger">*</span></label>
+                            <select id="loginFacility" class="form-select" disabled>
+                                <option value="">-- Choose Block First --</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Facility Password</label>
+                            <input type="password" id="facilityPassword" class="form-control" placeholder="Enter Facility Password">
+                        </div>
+                    </div>
+
+                    <!-- Admin Login Fields -->
+                    <div id="adminLoginFields" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Admin Username</label>
+                            <input type="text" id="adminUsername" class="form-control" placeholder="Enter Admin Username">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Admin Password</label>
+                            <input type="password" id="adminPassword" class="form-control" placeholder="Enter Admin Password">
+                        </div>
+                    </div>
+
+                    <div id="loginAlert" class="alert alert-danger d-none py-2" role="alert"></div>
+
+                    <button type="submit" class="btn btn-primary w-100 py-2 fs-5 mt-2">Login</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================= MAIN APPLICATION SECTION ================= -->
+<div id="appSection" class="container-fluid py-4" style="display: none;">
+    <div class="header-box text-center">
+        <h2>Ayushman Arogya Mandir - Subcentre (AAM-SC)</h2>
+        <h4>Key Performance & Outcome Indicators Portal</h4>
+        <div class="user-info-badge">
+            <span id="currentUserLabel" class="badge bg-light text-dark fs-6 mb-1 d-block">User: -</span>
+            <button class="btn btn-sm btn-warning fw-bold" onclick="handleLogout()">🚪 Logout</button>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <ul class="nav nav-pills nav-justified mb-4" id="portalTabs" role="tablist">
+        <li class="nav-item" role="presentation" id="entryTabLi">
+            <button class="nav-link active me-2" id="entry-tab" data-bs-toggle="pill" data-bs-target="#entry-panel" type="button" role="tab">
+                📝 Subcenter Data Entry Form
+            </button>
+        </li>
+        <li class="nav-item" role="presentation" id="adminTabLi">
+            <button class="nav-link" id="admin-tab" data-bs-toggle="pill" data-bs-target="#admin-panel" type="button" role="tab" onclick="loadDashboard()">
+                📊 Admin Monitoring Dashboard
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="portalTabsContent">
+        
+        <!-- ================= PANEL 1: DATA ENTRY FORM (For Facility Only) ================= -->
+        <div class="tab-pane fade show active" id="entry-panel" role="tabpanel">
+            <form id="kpiForm">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white"><strong>सामान्य जानकारी (General Details)</strong></div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Name of Block <span class="text-danger">*</span></label>
+                                <select id="blockName" class="form-select" onchange="onBlockChange()" required>
+                                    <option value="">Select Block</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Name of AAM-SC <span class="text-danger">*</span></label>
+                                <select id="subcenterName" class="form-select" required disabled>
+                                    <option value="">Select Block First</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Reporting Month & Year <span class="text-danger">*</span></label>
+                                <input type="month" id="reportMonth" class="form-control" required>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-responsive mb-4">
+                    <table class="table table-bordered table-hover align-middle">
+                        <thead class="table-dark text-center">
+                            <tr>
+                                <th style="width: 5%;">S.No.</th>
+                                <th style="width: 15%;">Type</th>
+                                <th style="width: 35%;">Indicators</th>
+                                <th style="width: 30%;">Means of Verification</th>
+                                <th style="width: 15%;">Value (Numbers / %) <span class="text-danger">*</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="indicatorsTableBody"></tbody>
+                    </table>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 mb-5">
+                    <button type="button" class="btn btn-warning btn-custom" onclick="saveLocally()">Save Draft</button>
+                    <button type="submit" class="btn btn-success btn-custom">Submit Data</button>
+                    <button type="button" class="btn btn-primary btn-custom" onclick="exportToExcel()">Export to Excel</button>
+                    <button type="button" class="btn btn-secondary btn-custom" onclick="window.print()">Print Report</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- ================= PANEL 2: ADMIN DASHBOARD (For Admin Only) ================= -->
+        <div class="tab-pane fade" id="admin-panel" role="tabpanel">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row g-3 align-items-center">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Select Reporting Month:</label>
+                            <input type="month" id="filterMonth" class="form-control" onchange="loadDashboard()">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Filter By Block:</label>
+                            <select id="adminBlockFilter" class="form-select" onchange="loadDashboard()">
+                                <option value="">All Blocks</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 text-end pt-4">
+                            <button class="btn btn-outline-danger" onclick="clearData()">Reset All Submitted Data</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="stat-card bg-total">
+                        <h5>Total Registered Subcenters</h5>
+                        <h2 id="totalCount">0</h2>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card bg-submitted">
+                        <h5>Submitted (फॉर्म भरा गया)</h5>
+                        <h2 id="submittedCount">0</h2>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card bg-pending">
+                        <h5>Pending (फॉर्म नहीं भरा)</h5>
+                        <h2 id="pendingCount">0</h2>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Subcenters Status Table -->
+            <div class="card mb-5">
+                <div class="card-header bg-dark text-white fw-bold">Subcenter Reporting Status</div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Block Name</th>
+                                    <th>Subcenter (AAM-SC) Name</th>
+                                    <th>Status</th>
+                                    <th>Submission Date/Time</th>
+                                    <th class="text-center">Admin Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Bootstrap 5 JS Bundle -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+// Master Facility Data Extracted directly from Facility.xlsx
+const facilityData = {
+  "Babhani": ["Arjhat", "Asandih", "Babhani Main Center", "Barwatola", "Chainpur", "Chapaki", "Chauna", "Dewan Tola", "Dubha", "Dumarhar", "Ghaghra", "Konga", "Pokhra", "Satbahani"],
+  "Chatra": ["Babhangawa", "Banjariya", "Bharsahi", "Koriyaw", "Kushumha", "Narkhoriya", "Narokhar", "Newari", "Pithauri", "Ramgarh", "Shivpur", "Siltham"],
+  "Chopan": ["Bharhari", "Billi", "Chatrvar", "Dala", "Jugail", "Kanachh", "Kanhara", "Karail", "Kargara", "Kona", "Kota", "Navtoliya", "Nigai", "Obra", "Parsoi", "Patwadh", "Ramgarh", "Shemiya", "Shilpi", "Tapoo"],
+  "Duddhi": ["Amwar", "Bagharoo", "Bidar", "Dhanaura", "Dhartidolva", "Dhurpa", "Dumardiha", "Dumhan", "Harnakachhar", "Harpura", "Jabar", "Jatajua", "Jharokala", "Jhorukhad", "Kewal", "Mahuariya", "Mahuli", "Medanikhad", "Phulwar", "Tedha", "Windhamganj"],
+  "Ghorawal": ["Baghpokhar", "Baidand", "Bakauli", "Baldih", "Bhaiswar", "Chhotkapur", "Deebarbhairava", "Dhuter", "Dorihar", "Garaigarh", "Inam", "Jamgaon", "Judia", "Kadiya", "Kaneti", "Karma", "Khairpur", "Kharuaao", "Lohandi", "Mokarsim", "Newari", "Padwaniya", "Parsauna", "Pedh Bhawna", "Phulwari", "Piparwar", "Saranga", "Sarvat", "Shahganj", "Shivdwar", "Siddhi", "Sirvit", "Sotil", "Tenuhar", "Tilaulikala"],
+  "Myorpur": ["Ahirburwa", "Arangpani", "Bijpur", "Dadihara", "Dibulganj", "Dorhar", "Enjani", "Jarha", "Khairahi", "Kirwil", "Lilasi", "Lojhra", "Maharikalan", "Murdhawa", "Nadhira", "Nemana Bijpur-2", "Parni", "Sagobandh", "Siddhwa"],
+  "Nagwa": ["Chakaria", "Cherui", "Kamhariya", "Khaliyari", "Manchi", "Maukala", "Raipur", "Rampur", "Rathara", "Saraigarh"],
+  "Robertsganj": ["Ailahi", "Babhnaulikala", "Bahuar", "Bahuara", "Bhadkana", "Burharkala", "Churk", "Durawal Kala", "Ghurma Mod", "Guru Parasi", "Hinauta", "Hinduari", "Kaithi-2", "Kamhari", "Karaki", "Karari", "Khairahi", "Kusi", "Lasara", "Lohara", "Lorhi", "Madhupur", "Markundi", "Mubarakpur", "Nagnar Haraiya", "Naibazar", "Nipraj", "Pakari", "Purna", "Rajdhan", "Rajpur", "Raup", "Robertsganj", "SahijanKala", "Salkhan", "Sukrit", "Takiya", "Urmaura/Badhauli"]
+};
+
+// KPI Indicators Data
+const kpiData = [
+    { type: "Productivity", sno: 1, indicator: "No. of OPD Cases per month", mov: "Case specific OPD of pregnant mothers, neonate, infant, children, adolescent, FP and CD" },
+    { type: "Productivity", sno: 2, indicator: "No. of follow up cases (repeat visit) per month", mov: "Case specific OPD of pregnant mothers, neonate, infant, children, adolescent, FP and CD" },
+    { type: "Productivity", sno: 3, indicator: "No. of cases referred to higher centre per month", mov: "Case specific referral of pregnant mothers, neonate, infant, children, adolescent, FP and CD" },
+    { type: "Productivity", sno: 4, indicator: "No. of Normal deliveries conducted", mov: "-" },
+    { type: "Productivity", sno: 5, indicator: "No. of Case specific OPD per month( as per defined service package)", mov: "As per Service package i.e. NCD (Hypertension, Diabetes & cancer), Eye, ENT, Oral Health, elderly, palliative, Medical Emergency & Mental Health etc" },
+    { type: "Productivity", sno: 6, indicator: "No. of cases referred to higher centre per month", mov: "As per Service package i.e. NCD (Hypertension, Diabetes & cancer), Eye, ENT, Oral Health, elderly, palliative, Medical Emergency & Mental Health etc" },
+    { type: "Productivity", sno: 7, indicator: "No. of case specific follow up per month", mov: "As per Service package i.e. NCD (Hypertension, Diabetes & cancer), Eye, ENT, Oral Health, elderly, palliative, Medical Emergency & Mental Health etc" },
+    { type: "Productivity", sno: 8, indicator: "No. of drop out rate cases following identification (as per service Package)", mov: "As per Service package i.e. NCD (Hypertension, Diabetes & cancer), Eye, ENT, Oral Health, elderly, palliative, Medical Emergency & Mental Health etc" },
+    { type: "Efficiency", sno: 9, indicator: "Percentage of women receiving all four ANCs", mov: "-" },
+    { type: "Efficiency", sno: 10, indicator: "Drop out rate for Pentavalent immunization", mov: "-" },
+    { type: "Efficiency", sno: 11, indicator: "Drop out rate for NCDs", mov: "-" },
+    { type: "Efficiency", sno: 12, indicator: "No. of stock out days of essential medicines", mov: "As per Service package" },
+    { type: "Efficiency", sno: 13, indicator: "No. of stock out days of essential diagnostic test", mov: "As per Service package" },
+    { type: "Efficiency", sno: 14, indicator: "No. of Yoga session conducted in month", mov: "-" },
+    { type: "Efficiency", sno: 15, indicator: "No of VHNDs conducted (for vulnerable population)", mov: "-" },
+    { type: "Clinical Care Indicators", sno: 16, indicator: "No. of high risk pregnancy identified during ANC", mov: "-" },
+    { type: "Clinical Care Indicators", sno: 17, indicator: "No. of AEFI cases reported", mov: "-" },
+    { type: "Clinical Care Indicators", sno: 18, indicator: "No. of Children with diarrhoea treated with ORS & Zn", mov: "-" },
+    { type: "Clinical Care Indicators", sno: 19, indicator: "Contraceptives acceptance rate", mov: "-" },
+    { type: "Clinical Care Indicators", sno: 20, indicator: "No. of Anaemia cases treated successfully", mov: "-" },
+    { type: "Clinical Care Indicators", sno: 21, indicator: "Treatment completion rate for Tuberculosis", mov: "-" },
+    { type: "Clinical Care Indicators", sno: 22, indicator: "Percentage of cases on treatment achieved blood pressure control", mov: "-" },
+    { type: "Clinical Care Indicators", sno: 23, indicator: "Percentage of cases on treatment achieved blood sugar control", mov: "-" },
+    { type: "Clinical Care Indicators", sno: 24, indicator: "Percentage of cases screened positive for cancer underwent biopsy", mov: "-" },
+    { type: "Clinical Care Indicators", sno: 25, indicator: "Percentage of cancer cases underwent treatment for each cancer", mov: "-" },
+    { type: "Service Quality", sno: 26, indicator: "Client Satisfaction Score (Patients)", mov: "Sum of average satisfaction score of each respondent" },
+    { type: "Service Quality", sno: 27, indicator: "Client Satisfaction Score (Community)", mov: "Sum of average satisfaction score of each respondent" },
+    { type: "Service Quality", sno: 28, indicator: "Percentage of chronic cases who started treatment at PHC/above are still under treatment for last 3 months", mov: "As per service package" }
+];
+
+let currentUserSession = null;
+
+// Populate Dropdowns
+function initDropdowns() {
+    const blockSelect = document.getElementById('blockName');
+    const loginBlockSelect = document.getElementById('loginBlock');
+    const adminBlockFilter = document.getElementById('adminBlockFilter');
+    
+    blockSelect.innerHTML = '<option value="">Select Block</option>';
+    loginBlockSelect.innerHTML = '<option value="">-- Choose Block --</option>';
+    adminBlockFilter.innerHTML = '<option value="">All Blocks</option>';
+
+    Object.keys(facilityData).sort().forEach(block => {
+        blockSelect.innerHTML += `<option value="${block}">${block}</option>`;
+        loginBlockSelect.innerHTML += `<option value="${block}">${block}</option>`;
+        adminBlockFilter.innerHTML += `<option value="${block}">${block}</option>`;
+    });
+
+    const today = new Date();
+    const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    document.getElementById('reportMonth').value = currentMonthStr;
+    document.getElementById('filterMonth').value = currentMonthStr;
+}
+
+// Toggle Login Form Fields
+function toggleRoleFields() {
+    const role = document.querySelector('input[name="loginRole"]:checked').value;
+    const facFields = document.getElementById('facilityLoginFields');
+    const adminFields = document.getElementById('adminLoginFields');
+    document.getElementById('loginAlert').classList.add('d-none');
+
+    if (role === 'facility') {
+        facFields.style.display = 'block';
+        adminFields.style.display = 'none';
+    } else {
+        facFields.style.display = 'none';
+        adminFields.style.display = 'block';
+    }
+}
+
+// Login Block Change
+function onLoginBlockChange() {
+    const block = document.getElementById('loginBlock').value;
+    const facSelect = document.getElementById('loginFacility');
+    
+    facSelect.innerHTML = '<option value="">-- Choose Subcenter --</option>';
+    if (block && facilityData[block]) {
+        facilityData[block].forEach(sc => {
+            facSelect.innerHTML += `<option value="${sc}">${sc}</option>`;
+        });
+        facSelect.disabled = false;
+    } else {
+        facSelect.disabled = true;
+    }
+}
+
+// Dependent Dropdown Change Listener (Form)
+function onBlockChange() {
+    const block = document.getElementById('blockName').value;
+    const scSelect = document.getElementById('subcenterName');
+    
+    scSelect.innerHTML = '<option value="">Select Subcenter</option>';
+    if (block && facilityData[block]) {
+        facilityData[block].forEach(sc => {
+            scSelect.innerHTML += `<option value="${sc}">${sc}</option>`;
+        });
+        scSelect.disabled = false;
+    } else {
+        scSelect.disabled = true;
+    }
+}
+
+// Handle Login Event
+function handleLogin(e) {
+    e.preventDefault();
+    const role = document.querySelector('input[name="loginRole"]:checked').value;
+    const alertBox = document.getElementById('loginAlert');
+    alertBox.classList.add('d-none');
+
+    if (role === 'facility') {
+        const block = document.getElementById('loginBlock').value;
+        const facility = document.getElementById('loginFacility').value;
+        const pass = document.getElementById('facilityPassword').value;
+
+        if (!block || !facility) {
+            alertBox.innerText = "कृपया ब्लॉक और फ़ैसिलिटी चुनें!";
+            alertBox.classList.remove('d-none');
+            return;
+        }
+        if (pass !== 'user123' && pass !== '') {
+            alertBox.innerText = "गलत पासवर्ड!";
+            alertBox.classList.remove('d-none');
+            return;
+        }
+
+        currentUserSession = { role: 'facility', block: block, subcenter: facility };
+        setupAppForSession();
+
+    } else if (role === 'admin') {
+        const user = document.getElementById('adminUsername').value;
+        const pass = document.getElementById('adminPassword').value;
+
+        if (user === 'admin' && pass === 'admin123') {
+            currentUserSession = { role: 'admin', username: 'Admin' };
+            setupAppForSession();
+        } else {
+            alertBox.innerText = "गलत एडमिन यूजरनेम या पासवर्ड!";
+            alertBox.classList.remove('d-none');
+        }
+    }
+}
+
+// Setup App State according to logged in role
+function setupAppForSession() {
+    document.getElementById('loginSection').style.display = 'none';
+    document.getElementById('appSection').style.display = 'block';
+
+    const userLabel = document.getElementById('currentUserLabel');
+    const entryTabLi = document.getElementById('entryTabLi');
+    const adminTabLi = document.getElementById('adminTabLi');
+
+    if (currentUserSession.role === 'facility') {
+        userLabel.innerText = `🏥 Facility: ${currentUserSession.subcenter} (${currentUserSession.block})`;
+        
+        entryTabLi.style.display = 'block';
+        adminTabLi.style.display = 'none'; 
+        
+        document.getElementById('blockName').value = currentUserSession.block;
+        onBlockChange();
+        document.getElementById('subcenterName').value = currentUserSession.subcenter;
+        
+        document.getElementById('blockName').disabled = true;
+        document.getElementById('subcenterName').disabled = true;
+
+        const entryTabBtn = new bootstrap.Tab(document.getElementById('entry-tab'));
+        entryTabBtn.show();
+
+    } else if (currentUserSession.role === 'admin') {
+        userLabel.innerText = `👨‍💼 Logged in as: Admin`;
+        
+        entryTabLi.style.display = 'none';
+        adminTabLi.style.display = 'block';
+
+        const adminTabBtn = new bootstrap.Tab(document.getElementById('admin-tab'));
+        adminTabBtn.show();
+        
+        loadDashboard();
+    }
+}
+
+// Logout Handler
+function handleLogout() {
+    currentUserSession = null;
+    document.getElementById('loginForm').reset();
+    document.getElementById('appSection').style.display = 'none';
+    document.getElementById('loginSection').style.display = 'block';
+    toggleRoleFields();
+}
+
+// Render Table - MANDATORY ALL INPUT FIELDS (`required` added)
+function renderTable() {
+    const tbody = document.getElementById('indicatorsTableBody');
+    tbody.innerHTML = '';
+    kpiData.forEach((item) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="text-center fw-bold">${item.sno}</td>
+            <td class="fw-semibold text-secondary">${item.type}</td>
+            <td>${item.indicator}</td>
+            <td class="small text-muted">${item.mov}</td>
+            <td>
+                <input type="number" step="0.01" min="0" class="form-control val-input" id="val_${item.sno}" placeholder="Enter Value *" required>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function getFormData() {
+    const blockName = document.getElementById('blockName').value;
+    const subcenterName = document.getElementById('subcenterName').value;
+    const reportMonth = document.getElementById('reportMonth').value;
+
+    const values = kpiData.map(item => ({
+        sno: item.sno,
+        type: item.type,
+        indicator: item.indicator,
+        mov: item.mov,
+        value: document.getElementById(`val_${item.sno}`).value
+    }));
+
+    return { blockName, subcenterName, reportMonth, values, submittedAt: new Date().toLocaleString() };
+}
+
+// Form Submit & Blank/Reset Form Implementation
+document.getElementById('kpiForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const data = getFormData();
+    
+    let submissions = JSON.parse(localStorage.getItem('kpi_submissions') || '[]');
+    submissions = submissions.filter(s => !(s.subcenterName.toLowerCase() === data.subcenterName.toLowerCase() && s.reportMonth === data.reportMonth));
+    submissions.push(data);
+    
+    localStorage.setItem('kpi_submissions', JSON.stringify(submissions));
+    alert(`डेटा (${data.subcenterName}) सफलतापूर्वक सबमिट हो गया है!`);
+
+    // Reset Form Inputs (Clear values)
+    kpiData.forEach(item => {
+        const input = document.getElementById(`val_${item.sno}`);
+        if (input) input.value = '';
+    });
+
+    localStorage.removeItem('kpi_draft');
+});
+
+function saveLocally() {
+    const formData = getFormData();
+    localStorage.setItem('kpi_draft', JSON.stringify(formData));
+    alert('ड्राफ्ट सफलता से सेव हो गया!');
+}
+
+function exportToExcel() {
+    const data = getFormData();
+    if(!data.blockName || !data.subcenterName) {
+        alert("कृपया ब्लॉक और सबसेंटर चुनें!");
+        return;
+    }
+    const rows = [
+        ["Block Name", data.blockName],
+        ["AAM-SC Name", data.subcenterName],
+        ["Reporting Month", data.reportMonth],
+        [],
+        ["Type", "S.No.", "Indicators", "Means of Verification", "Value in Numbers/%"]
+    ];
+
+    data.values.forEach(v => {
+        rows.push([v.type, v.sno, v.indicator, v.mov, v.value]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "KPI Reporting");
+    XLSX.writeFile(wb, `KPI_Report_${data.subcenterName}_${data.reportMonth}.xlsx`);
+}
+
+// Admin Dashboard Load
+function loadDashboard() {
+    const selectedMonth = document.getElementById('filterMonth').value;
+    const selectedBlockFilter = document.getElementById('adminBlockFilter').value;
+    const submissions = JSON.parse(localStorage.getItem('kpi_submissions') || '[]');
+
+    const tbody = document.getElementById('adminTableBody');
+    tbody.innerHTML = '';
+
+    let totalCount = 0;
+    let submittedCount = 0;
+    let pendingCount = 0;
+
+    let index = 1;
+    Object.keys(facilityData).forEach(block => {
+        if (selectedBlockFilter && selectedBlockFilter !== block) return;
+
+        facilityData[block].forEach(sc => {
+            totalCount++;
+            const submission = submissions.find(s => 
+                s.subcenterName.toLowerCase() === sc.toLowerCase() && 
+                s.reportMonth === selectedMonth
+            );
+
+            const isSubmitted = !!submission;
+            if (isSubmitted) submittedCount++;
+            else pendingCount++;
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${index++}</td>
+                <td>${block}</td>
+                <td class="fw-bold">${sc}</td>
+                <td>
+                    ${isSubmitted 
+                        ? '<span class="badge bg-success fs-6">Submitted</span>' 
+                        : '<span class="badge bg-danger fs-6">Pending</span>'}
+                </td>
+                <td>${isSubmitted ? submission.submittedAt : '-'}</td>
+                <td class="text-center">
+                    ${isSubmitted 
+                        ? `<button class="btn btn-sm btn-success me-1" onclick="viewSubmittedForm('${sc}', '${selectedMonth}')">👁️ View</button>
+                           <button class="btn btn-sm btn-warning fw-bold" onclick="editSubmittedForm('${sc}', '${selectedMonth}')">✏️ Edit Form</button>` 
+                        : '-'}
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    });
+
+    document.getElementById('totalCount').innerText = totalCount;
+    document.getElementById('submittedCount').innerText = submittedCount;
+    document.getElementById('pendingCount').innerText = pendingCount;
+}
+
+// Open Submitted Form in a New Tab (Read-only / Printable)
+function viewSubmittedForm(subcenterName, month) {
+    const submissions = JSON.parse(localStorage.getItem('kpi_submissions') || '[]');
+    const data = submissions.find(s => s.subcenterName.toLowerCase() === subcenterName.toLowerCase() && s.reportMonth === month);
+
+    if (!data) {
+        alert("सबमिट किया गया फ़ॉर्म नहीं मिला!");
+        return;
+    }
+
+    let tableRowsHTML = '';
+    data.values.forEach(item => {
+        tableRowsHTML += `
+            <tr>
+                <td style="text-align:center; font-weight:bold;">${item.sno}</td>
+                <td style="font-weight:600; color:#555;">${item.type}</td>
+                <td>${item.indicator}</td>
+                <td style="font-size:0.9em; color:#666;">${item.mov}</td>
+                <td style="text-align:center; font-weight:bold; color:#0d6efd; background-color:#f8f9fa;">${item.value !== "" ? item.value : "-"}</td>
+            </tr>
+        `;
+    });
+
+    const viewWindow = window.open('', '_blank');
+    viewWindow.document.write(`
+        <!DOCTYPE html>
+        <html lang="hi">
+        <head>
+            <title>Submitted Form - ${data.subcenterName} (${data.reportMonth})</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <style>
+                body { padding: 30px; background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+                .report-header { background: #0d6efd; color: white; padding: 20px; border-radius: 8px; margin-bottom: 25px; }
+                .info-card { background: white; padding: 15px 20px; border-radius: 8px; border-left: 5px solid #0d6efd; margin-bottom: 25px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+                .table-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+                @media print {
+                    .no-print { display: none; }
+                    body { padding: 0; background-color: white; }
+                    .table-container { box-shadow: none; padding: 0; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container-fluid">
+                <div class="d-flex justify-content-between align-items-center mb-3 no-print">
+                    <span class="badge bg-success fs-6">✓ Submitted Record</span>
+                    <div>
+                        <button class="btn btn-primary me-2" onclick="window.print()">🖨️ Print Form</button>
+                        <button class="btn btn-secondary" onclick="window.close()">❌ Close Tab</button>
+                    </div>
+                </div>
+
+                <div class="report-header text-center">
+                    <h2>Ayushman Arogya Mandir - Subcentre (AAM-SC)</h2>
+                    <h4>Submitted Key Performance Indicators Report</h4>
+                </div>
+
+                <div class="info-card">
+                    <div class="row">
+                        <div class="col-md-3"><strong>Block Name:</strong> ${data.blockName}</div>
+                        <div class="col-md-4"><strong>Subcenter (AAM-SC):</strong> ${data.subcenterName}</div>
+                        <div class="col-md-3"><strong>Reporting Month:</strong> ${data.reportMonth}</div>
+                        <div class="col-md-2"><strong>Submitted At:</strong> ${data.submittedAt}</div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="table table-bordered table-striped align-middle">
+                        <thead class="table-dark text-center">
+                            <tr>
+                                <th style="width: 5%;">S.No.</th>
+                                <th style="width: 15%;">Type</th>
+                                <th style="width: 40%;">Indicator</th>
+                                <th style="width: 25%;">Means of Verification</th>
+                                <th style="width: 15%;">Submitted Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRowsHTML}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </body>
+        </html>
+    `);
+    viewWindow.document.close();
+}
+
+// EDIT Submitted Form Function (Admin Only)
+function editSubmittedForm(subcenterName, month) {
+    const submissions = JSON.parse(localStorage.getItem('kpi_submissions') || '[]');
+    const data = submissions.find(s => s.subcenterName.toLowerCase() === subcenterName.toLowerCase() && s.reportMonth === month);
+
+    if (!data) {
+        alert("संशोधित करने के लिए फ़ॉर्म नहीं मिला!");
+        return;
+    }
+
+    let editRowsHTML = '';
+    data.values.forEach(item => {
+        editRowsHTML += `
+            <tr>
+                <td class="text-center font-weight-bold">${item.sno}</td>
+                <td class="font-weight-bold text-secondary">${item.type}</td>
+                <td>${item.indicator}</td>
+                <td class="small text-muted">${item.mov}</td>
+                <td>
+                    <input type="number" step="0.01" min="0" class="form-control edit-val-input" data-sno="${item.sno}" value="${item.value}" required>
+                </td>
+            </tr>
+        `;
+    });
+
+    const editWindow = window.open('', '_blank');
+    editWindow.document.write(`
+        <!DOCTYPE html>
+        <html lang="hi">
+        <head>
+            <title>Edit Form - ${data.subcenterName} (${data.reportMonth})</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <style>
+                body { padding: 30px; background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+                .report-header { background: linear-gradient(135deg, #ffc107, #fd7e14); color: #000; padding: 20px; border-radius: 8px; margin-bottom: 25px; }
+                .info-card { background: white; padding: 15px 20px; border-radius: 8px; border-left: 5px solid #ffc107; margin-bottom: 25px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+                .table-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+            </style>
+        </head>
+        <body>
+            <div class="container-fluid">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="badge bg-warning text-dark fs-6">✏️ Admin Edit Mode</span>
+                    <button class="btn btn-secondary" onclick="window.close()">❌ Cancel & Close</button>
+                </div>
+
+                <div class="report-header text-center">
+                    <h2>Ayushman Arogya Mandir - Subcentre (AAM-SC)</h2>
+                    <h4>Edit / Update Subcenter Data (Admin Portal)</h4>
+                </div>
+
+                <div class="info-card">
+                    <div class="row">
+                        <div class="col-md-3"><strong>Block Name:</strong> ${data.blockName}</div>
+                        <div class="col-md-4"><strong>Subcenter (AAM-SC):</strong> ${data.subcenterName}</div>
+                        <div class="col-md-3"><strong>Reporting Month:</strong> ${data.reportMonth}</div>
+                        <div class="col-md-2"><strong>Originally Submitted:</strong> ${data.submittedAt}</div>
+                    </div>
+                </div>
+
+                <form id="editForm">
+                    <div class="table-container mb-4">
+                        <table class="table table-bordered align-middle">
+                            <thead class="table-dark text-center">
+                                <tr>
+                                    <th style="width: 5%;">S.No.</th>
+                                    <th style="width: 15%;">Type</th>
+                                    <th style="width: 35%;">Indicator</th>
+                                    <th style="width: 25%;">Means of Verification</th>
+                                    <th style="width: 20%;">Edit Value (Numbers / %)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${editRowsHTML}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="text-end mb-5">
+                        <button type="button" class="btn btn-success btn-lg fw-bold px-4" onclick="saveAdminEdits()">💾 Save Changes & Update</button>
+                    </div>
+                </form>
+            </div>
+
+            <script>
+                function saveAdminEdits() {
+                    const inputs = document.querySelectorAll('.edit-val-input');
+                    let updatedValues = [];
+                    let isValid = true;
+
+                    inputs.forEach(input => {
+                        if (input.value === "") {
+                            isValid = false;
+                        }
+                        const sno = parseInt(input.getAttribute('data-sno'));
+                        const originalObj = ${JSON.stringify(data.values)}.find(v => v.sno === sno);
+                        updatedValues.push({
+                            sno: sno,
+                            type: originalObj.type,
+                            indicator: originalObj.indicator,
+                            mov: originalObj.mov,
+                            value: input.value
+                        });
+                    });
+
+                    if (!isValid) {
+                        alert("कृपया सभी फ़ील्ड्स में सही संख्या भरें!");
+                        return;
+                    }
+
+                    // Get submissions from opener's window or localstorage
+                    let submissions = JSON.parse(localStorage.getItem('kpi_submissions') || '[]');
+                    submissions = submissions.filter(s => !(s.subcenterName.toLowerCase() === "${data.subcenterName.toLowerCase()}" && s.reportMonth === "${data.reportMonth}"));
+                    
+                    const updatedRecord = {
+                        blockName: "${data.blockName}",
+                        subcenterName: "${data.subcenterName}",
+                        reportMonth: "${data.reportMonth}",
+                        values: updatedValues,
+                        submittedAt: new Date().toLocaleString() + " (Edited by Admin)"
+                    };
+
+                    submissions.push(updatedRecord);
+                    localStorage.setItem('kpi_submissions', JSON.stringify(submissions));
+
+                    alert("डेटा सफलतापूर्वक अपडेट कर दिया गया है!");
+                    if (window.opener && !window.opener.closed) {
+                        window.opener.loadDashboard();
+                    }
+                    window.close();
+                }
+            <\/script>
+        </body>
+        </html>
+    `);
+    editWindow.document.close();
+}
+
+function clearData() {
+    if(confirm("क्या आप सारा सबमिट किया गया डेटा रीसेट करना चाहते हैं?")) {
+        localStorage.removeItem('kpi_submissions');
+        loadDashboard();
+    }
+}
+
+// Initialization
+initDropdowns();
+renderTable();
+</script>
+
+</body>
+</html>
