@@ -6,8 +6,6 @@
     <title>AAM-SC Unified Indicator Portal & Dashboard</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- SheetJS for Excel Export -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         .header-box { background: linear-gradient(135deg, #0d6efd, #004085); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; position: relative; }
@@ -20,8 +18,7 @@
         .bg-total { background-color: #0d6efd; }
         .btn-custom { min-width: 130px; }
         
-        /* Login Card Styling */
-        .login-container { max-width: 480px; margin: 80px auto; }
+        .login-container { max-width: 520px; margin: 60px auto; }
         .login-card { border: none; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.15); background: white; }
         .login-header { background: linear-gradient(135deg, #0d6efd, #004085); color: white; border-top-left-radius: 12px; border-top-right-radius: 12px; padding: 25px; text-align: center; }
         .role-btn-group .btn-check:checked + .btn-outline-primary { background-color: #0d6efd; color: white; }
@@ -53,9 +50,15 @@
                     <!-- Facility Login Fields -->
                     <div id="facilityLoginFields">
                         <div class="mb-3">
+                            <label class="form-label fw-bold">Select District <span class="text-danger">*</span></label>
+                            <select id="loginDistrict" class="form-select" onchange="onLoginDistrictChange()">
+                                <option value="">-- Choose District --</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
                             <label class="form-label fw-bold">Select Block <span class="text-danger">*</span></label>
-                            <select id="loginBlock" class="form-select" onchange="onLoginBlockChange()">
-                                <option value="">-- Choose Block --</option>
+                            <select id="loginBlock" class="form-select" onchange="onLoginBlockChange()" disabled>
+                                <option value="">-- Choose District First --</option>
                             </select>
                         </div>
                         <div class="mb-3">
@@ -110,34 +113,45 @@
             </button>
         </li>
         <li class="nav-item" role="presentation" id="adminTabLi">
-            <button class="nav-link" id="admin-tab" data-bs-toggle="pill" data-bs-target="#admin-panel" type="button" role="tab" onclick="loadDashboard()">
+            <button class="nav-link me-2" id="admin-tab" data-bs-toggle="pill" data-bs-target="#admin-panel" type="button" role="tab" onclick="loadDashboard()">
                 📊 Admin Monitoring Dashboard
+            </button>
+        </li>
+        <li class="nav-item" role="presentation" id="compileTabLi" style="display: none;">
+            <button class="nav-link" id="compile-tab" data-bs-toggle="pill" data-bs-target="#compile-panel" type="button" role="tab" onclick="initCompileFilters()">
+                📈 Compile Report (District / Block)
             </button>
         </li>
     </ul>
 
     <div class="tab-content" id="portalTabsContent">
         
-        <!-- ================= PANEL 1: DATA ENTRY FORM (For Facility Only) ================= -->
+        <!-- ================= PANEL 1: DATA ENTRY FORM ================= -->
         <div class="tab-pane fade show active" id="entry-panel" role="tabpanel">
             <form id="kpiForm">
                 <div class="card mb-4">
                     <div class="card-header bg-primary text-white"><strong>सामान्य जानकारी (General Details)</strong></div>
                     <div class="card-body">
                         <div class="row g-3">
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold">Name of Block <span class="text-danger">*</span></label>
-                                <select id="blockName" class="form-select" onchange="onBlockChange()" required>
-                                    <option value="">Select Block</option>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Name of District <span class="text-danger">*</span></label>
+                                <select id="districtName" class="form-select" onchange="onDistrictChange()" required>
+                                    <option value="">Select District</option>
                                 </select>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Name of Block <span class="text-danger">*</span></label>
+                                <select id="blockName" class="form-select" onchange="onBlockChange()" required disabled>
+                                    <option value="">Select District First</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
                                 <label class="form-label fw-bold">Name of AAM-SC <span class="text-danger">*</span></label>
                                 <select id="subcenterName" class="form-select" required disabled>
                                     <option value="">Select Block First</option>
                                 </select>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label fw-bold">Reporting Month & Year <span class="text-danger">*</span></label>
                                 <input type="month" id="reportMonth" class="form-control" required>
                             </div>
@@ -160,16 +174,16 @@
                     </table>
                 </div>
 
-                <div class="d-flex justify-content-end gap-2 mb-5">
+                <!-- Form Action Buttons -->
+                <div class="d-flex flex-wrap justify-content-end gap-2 mb-5">
+                    <button type="button" class="btn btn-info text-white fw-bold btn-custom" onclick="openViewReportModal()">👁️ View Report</button>
                     <button type="button" class="btn btn-warning btn-custom" onclick="saveLocally()">Save Draft</button>
                     <button type="submit" class="btn btn-success btn-custom">Submit Data</button>
-                    <button type="button" class="btn btn-primary btn-custom" onclick="exportToExcel()">Export to Excel</button>
-                    <button type="button" class="btn btn-secondary btn-custom" onclick="window.print()">Print Report</button>
                 </div>
             </form>
         </div>
 
-        <!-- ================= PANEL 2: ADMIN DASHBOARD (For Admin Only) ================= -->
+        <!-- ================= PANEL 2: ADMIN DASHBOARD ================= -->
         <div class="tab-pane fade" id="admin-panel" role="tabpanel">
             <div class="card mb-4">
                 <div class="card-body">
@@ -179,13 +193,16 @@
                             <input type="month" id="filterMonth" class="form-control" onchange="loadDashboard()">
                         </div>
                         <div class="col-md-4">
+                            <label class="form-label fw-bold">Filter By District:</label>
+                            <select id="adminDistrictFilter" class="form-select" onchange="onAdminDistrictFilterChange()">
+                                <option value="">All Districts</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
                             <label class="form-label fw-bold">Filter By Block:</label>
                             <select id="adminBlockFilter" class="form-select" onchange="loadDashboard()">
                                 <option value="">All Blocks</option>
                             </select>
-                        </div>
-                        <div class="col-md-4 text-end pt-4">
-                            <button class="btn btn-outline-danger" onclick="clearData()">Reset All Submitted Data</button>
                         </div>
                     </div>
                 </div>
@@ -222,6 +239,7 @@
                             <thead class="table-light">
                                 <tr>
                                     <th>#</th>
+                                    <th>District Name</th>
                                     <th>Block Name</th>
                                     <th>Subcenter (AAM-SC) Name</th>
                                     <th>Status</th>
@@ -236,26 +254,104 @@
             </div>
         </div>
 
+        <!-- ================= PANEL 3: COMPILE REPORT (DISTRICT/BLOCK) ================= -->
+        <div class="tab-pane fade" id="compile-panel" role="tabpanel">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title text-primary fw-bold mb-3">📁 Generate Compiled Facility Report</h5>
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Select Reporting Month:</label>
+                            <input type="month" id="compileMonth" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Select District <span class="text-danger">*</span></label>
+                            <select id="compileDistrict" class="form-select" onchange="onCompileDistrictChange()">
+                                <option value="">-- Choose District --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Select Block (Optional):</label>
+                            <select id="compileBlock" class="form-select">
+                                <option value="">All Blocks in District</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="button" class="btn btn-primary fw-bold w-100" onclick="generateCompiledReport()">📊 Generate Compile Report</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="compileResultContainer"></div>
+        </div>
+
     </div>
 </div>
 
-<!-- Bootstrap 5 JS Bundle -->
+<!-- ================= VIEW REPORT MONTH PICKER MODAL ================= -->
+<div class="modal fade" id="viewReportModal" tabindex="-1" aria-labelledby="viewReportModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title fw-bold" id="viewReportModalLabel">👁️ View Monthly Report</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Select Reporting Month & Year:</label>
+                    <input type="month" id="viewReportMonthPicker" class="form-control form-control-lg">
+                </div>
+                <div class="alert alert-light border small text-muted mb-0">
+                    💡 चुनें कि आप किस महीने की रिपोर्ट देखना या प्रिंट करना चाहते हैं।
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary fw-bold" onclick="confirmViewReport()">Show & Print Report</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-// Master Facility Data Extracted directly from Facility.xlsx
-const facilityData = {
-  "Babhani": ["Arjhat", "Asandih", "Babhani Main Center", "Barwatola", "Chainpur", "Chapaki", "Chauna", "Dewan Tola", "Dubha", "Dumarhar", "Ghaghra", "Konga", "Pokhra", "Satbahani"],
-  "Chatra": ["Babhangawa", "Banjariya", "Bharsahi", "Koriyaw", "Kushumha", "Narkhoriya", "Narokhar", "Newari", "Pithauri", "Ramgarh", "Shivpur", "Siltham"],
-  "Chopan": ["Bharhari", "Billi", "Chatrvar", "Dala", "Jugail", "Kanachh", "Kanhara", "Karail", "Kargara", "Kona", "Kota", "Navtoliya", "Nigai", "Obra", "Parsoi", "Patwadh", "Ramgarh", "Shemiya", "Shilpi", "Tapoo"],
-  "Duddhi": ["Amwar", "Bagharoo", "Bidar", "Dhanaura", "Dhartidolva", "Dhurpa", "Dumardiha", "Dumhan", "Harnakachhar", "Harpura", "Jabar", "Jatajua", "Jharokala", "Jhorukhad", "Kewal", "Mahuariya", "Mahuli", "Medanikhad", "Phulwar", "Tedha", "Windhamganj"],
-  "Ghorawal": ["Baghpokhar", "Baidand", "Bakauli", "Baldih", "Bhaiswar", "Chhotkapur", "Deebarbhairava", "Dhuter", "Dorihar", "Garaigarh", "Inam", "Jamgaon", "Judia", "Kadiya", "Kaneti", "Karma", "Khairpur", "Kharuaao", "Lohandi", "Mokarsim", "Newari", "Padwaniya", "Parsauna", "Pedh Bhawna", "Phulwari", "Piparwar", "Saranga", "Sarvat", "Shahganj", "Shivdwar", "Siddhi", "Sirvit", "Sotil", "Tenuhar", "Tilaulikala"],
-  "Myorpur": ["Ahirburwa", "Arangpani", "Bijpur", "Dadihara", "Dibulganj", "Dorhar", "Enjani", "Jarha", "Khairahi", "Kirwil", "Lilasi", "Lojhra", "Maharikalan", "Murdhawa", "Nadhira", "Nemana Bijpur-2", "Parni", "Sagobandh", "Siddhwa"],
-  "Nagwa": ["Chakaria", "Cherui", "Kamhariya", "Khaliyari", "Manchi", "Maukala", "Raipur", "Rampur", "Rathara", "Saraigarh"],
-  "Robertsganj": ["Ailahi", "Babhnaulikala", "Bahuar", "Bahuara", "Bhadkana", "Burharkala", "Churk", "Durawal Kala", "Ghurma Mod", "Guru Parasi", "Hinauta", "Hinduari", "Kaithi-2", "Kamhari", "Karaki", "Karari", "Khairahi", "Kusi", "Lasara", "Lohara", "Lorhi", "Madhupur", "Markundi", "Mubarakpur", "Nagnar Haraiya", "Naibazar", "Nipraj", "Pakari", "Purna", "Rajdhan", "Rajpur", "Raup", "Robertsganj", "SahijanKala", "Salkhan", "Sukrit", "Takiya", "Urmaura/Badhauli"]
+const districtData = {
+  "Bhadohi ": {
+    "Abholi": ["Abholi", "BORI BOJH", "Bhanda", "Gadaura", "Gaura", "Kudava", "Matethu II", "Matethu-1", "SAGARPUR", "SEMRA", "Sherpur"],
+    "Aurai": ["Achawar", "Ahimanpur", "Amawa Mafi", "Babusrai", "Baira Khas", "Barji", "Bhawanipur", "Derwa 2.", "Dighawat", "Ghosia", "Girdbadagaon", "Gorideh", "Jagdari", "Jatthi", "Jhauaa", "Khamariya 1", "Koilara", "Lalanagar 2nd", "Laxmara", "Madhosingh", "Mahadva", "Mahthua", "Pipargau", "Rampur", "Sahsepur", "Samdha Khas", "Teuri", "Ugapur", "Vikrampur"],
+    "Bhadohi": ["Amilauri", "Amwa Khurd", "BHALLA", "Babhnauti", "Bardhan", "CHANDI GAHNA", "Chauri", "Dudwa", "FATTUPUR DARGAH", "GOBINDPUR", "HARIYAWAN", "JOGIPUR", "Jamunipur", "Kukrauthi", "Lathiya", "MAIHARDO PATTI", "MARCHWAR", "Madhorampur", "Mamhar", "Moosilatpur", "Nai Bazar", "Nidoor", "PIPRIS", "RAJAIPUR Z. SAYER", "RAVELI", "TARAPUR", "Uchatha", "Udhwa"],
+    "Deegh": ["ARAI UPARWAR N.", "Baripur", "Bichiyan", "Chakmandhata", "Derwasi", "Kalika Nager", "Kalnuaa", "POORE NAGARI", "Sager Raipur", "Subhash Nager", "Unjh"],
+    "Gyanpur": ["Bhagwatpur", "Bidiura", "Chksunder", "Dashrathpur", "Gaharpur", "Ganeriyapur", "Girai", "Gosaidashpur", "HOLPUR", "Lakhano", "Laxmanpatti", "Nathipur", "Ramkapura", "Saripur", "Tiwaripur", "VAIRI PARAWA", "VARI", "Vedpur"],
+    "Suriyawana": ["Abhiya", "Badalipur", "Baharaichi", "Chaurapur Baidan", "Chhanura", "Hariharpur", "Kador", "Lalipur", "MADHUPATTI", "Patti bejaw", "UGAIPUR", "Varmohani"]
+  },
+  "Mirzapur": {
+    "CHILH": ["Checksari", "Husanipur", "Jagdispur", "Lakhanpur", "Newadhia", "Patehara"],
+    "CHUNAR": [" BAREV", "ADALHAT", "BAREWNA", "BHURKURA", "DHARAMMARPUR", "DHAURAHARA", "GANGPUR", "GHATAMPUR", "JALALPUR MAFI", "KHAJURAUL", "KOLANA", "KOLAUND", "MEERAPUR", "MOHADDINPUR", "NIBI", "NIYAMATPUR KALA", "NIYAMATPUR KHURD", "PACHEWARA", "PAUNI", "PIRALLIPUR", "RAIPURIYA", "RAMPUR"],
+    "GURSANDI": ["Aghauli", "Baiyadad", "CHANDAIPUR ", "CHHITPUR", "DUHAUA", "Gajanand", "HARIHERPUR BEDHOULI ", "HWC MULHAWA", "Khajuri", "Khutahan", "Kurkuthiya", "MAGRDA KALA", "MASARI", "Newariya Ghat ", "TARKAPUR GRAMIN", "TEDHAWA", "TENGRAHI", "VEERSHAHPUR", "mahuaarikala"],
+    "HALIYA": ["AHUGIKHURD", "Ahugi Kalan, MIRZAPUR", "BABURA BHAIRODAYAL", "BABURAKALA", "BASKOP", "BHAISOR BALAY", "Baraya, MIRZAPUR", "GARBARA", "HARRA", "HWC MADWA DHANAWAL", "KOTA SHIV PRATAP SINGH", "MAHESHPUR", "MAHUGARH", "MANIGARHA", "MATIHARA, MIRZAPUR", "NAIDI KATHARI", "Patehra, MIRZAPUR", "RAJPUR, MIRZAPUR", "SONGARHA", "THOTHA", "TILAW NO-4"],
+    "JAMALPUR": ["AHRAURA DIH", "BAHUAR", "BARI SALAHPUR", "BHADAVAL", "BHAIPUR KHURD", "BHUELI", "CHHOTA MIRZAPUR", "DEVARIYA", "DHARA", "DHEBHARA", "DHOBHAHI", "DHURIYA", "DOHARI", "DUHI KHURD", "FATTEPUR", "JAFARABAD", "KHAJGIPUR", "KUNDA DIH", "MATHNA", "ROSHANHAR", "SC Riva", "SURAHA", "VISAURA KALA"],
+    "KACCHWA": ["BAJAHA", "BHAISA", "BHANDHAWA", "CHAKIYA", "DIYAW", "GAGRAW", "JALALPUR", "JAMUA", "KALYANPUR", "MAJHWA", "RAMAPUR", "SEMARI", "TULAPUR"],
+    "LALGANJ": ["ATRAILA RAJA", "CHITANG", "DHASRA", "KATAI", "KHAMHARIA", "KHARIHAT KALA", "LAHANGPUR", "LALAPUR", "NEWADIYA", "PATULKI", "PAZRA ", "RANIBARI", "TENDUHANI", "THARPARSIYA"],
+    "PADARI": ["AKSOLI", "CHHATAHA", "DEVPURA", "DHATI", "GAURA RAJA", "KANOURA", "MOHANPUR", "PARSANPUR", "SINDHORA", "SISTAKALA", "UMARIYA AYODHA"],
+    "PATEHARA": [" PATEHARA KHURD", "AMOI", "AMOI PURWA", "BAHUTI", "GOPALPUR", "JAMUI", "KIRAHA", "LEDUKI", "MALUA", "MARIHAN", "PATHRAUR"],
+    "RAJGARH": ["BABHANI ", "BAGHAURA", "BAN IMILIYA ", "BARGAWA", "BHERI ", "CHHITAMPUR ", "DHANSIRIYA ", "DHAUHA", "GOLHANPUR", "IMILIYA KHURD ", "JANGAL MAHAL ", "KALWARI ", "KHAMHWA ", "KHORADIH ", "KOTHILWA ", "NIKARIKA ", "NUAON", "PACHOKHARA ", "RAIKARI ", "RAJAPUR ", "SAKTESHGARH ", "SARIYA ", "SARSOGRAM ", "SONPUR ", "SONVARSA"],
+    "SIKHER": ["DHANITA", "KHAIRA", "KUSHA", "MEDIYA", "PACHRAO", "PASIYAHI", "RAMGARH", "RUDAULI", "SIKHER", "VIDAPUR"],
+    "VIJAYPUR": [" Bahutimai Chak Chaura", " Balapur", " Kamapur", "Arjunpur", "Bajata", "Bhiloura", "Dhaurahara", "Dugraha", "Gaura 2", "Gogaav ( Khaira)", "Gogaon", "Gopalpur", "Hargadh", "Jopa", "Kolepur", "Kushaha", "Mankathi", "Negura Ribai", "Supntha", "Vijaypur Sarroi", "Virohi"]
+  },
+  "Sonbhadra": {
+    "Babhani": ["Arjhat", "Asandih", "Babhani Main Center", "Barwatola", "Chainpur", "Chapaki", "Chauna", "Dewan Tola", "Dubha", "Dumarhar", "Ghaghra", "Konga", "Pokhra", "Satbahani"],
+    "Chatra": ["Babhangawa", "Banjariya", "Bharsahi", "Koriyaw", "Kushumha", "Narkhoriya", "Narokhar", "Newari", "Pithauri", "Ramgarh", "Shivpur", "Siltham"],
+    "Chopan": ["Bharhari", "Billi", "Chatrvar", "Dala", "Jugail", "Kanachh", "Kanhara", "Karail", "Kargara", "Kona", "Kota", "Navtoliya ", "Nigai", "Obra", "Parsoi", "Patwadh", "Ramgarh", "Shemiya", "Shilpi", "Tapoo"],
+    "Duddhi": ["Amwar ", "Bagharoo", "Bidar", "Dhanaura", "Dhartidolva", "Dhurpa", "Dumardiha", "Dumhan", "Harnakachhar", "Harpura", "Jabar", "Jatajua", "Jharokala", "Jhorukhad", "Kewal", "Mahuariya", "Mahuli", "Medanikhad", "Phulwar", "Tedha", "Windhamganj"],
+    "Ghorawal": ["Baghpokhar", "Baidand", "Bakauli", "Baldih", "Bhaiswar", "Chhotkapur", "Deebarbhairava", "Dhuter", "Dorihar", "Garaigarh", "Inam", "Jamgaon", "Judia", "Kadiya", "Kaneti", "Karma", "Khairpur", "Kharuaao", "Lohandi", "Mokarsim", "Newari", "Padwaniya", "Parsauna", "Pedh Bhawna", "Phulwari", "Piparwar", "Saranga", "Sarvat", "Shahganj", "Shivdwar", "Siddhi", "Sirvit", "Sotil", "Tenuhar", "Tilaulikala"],
+    "Myorpur": ["Ahirburwa", "Arangpani", "Bijpur", "Dadihara", "Dibulganj", "Dorhar", "Enjani", "Jarha", "Khairahi", "Kirwil", "Lilasi", "Lojhra", "Maharikalan", "Murdhawa", "Nadhira", "Nemana Bijpur-2", "Parni", "Sagobandh", "Siddhwa"],
+    "Nagwa": ["Chakaria", "Cherui", "Kamhariya", "Khaliyari", "Manchi", "Maukala", "Raipur", "Rampur", "Rathara", "Saraigarh"],
+    "Robertsganj": ["Ailahi", "Babhnaulikala", "Bahuar", "Bahuara", "Bhadkana", "Burharkala", "Churk", "Durawal Kala", "Ghurma Mod", "Guru Parasi", "Hinauta", "Hinduari", "Kaithi-2", "Kamhari", "Karaki", "Karari", "Khairahi", "Kusi", "Lasara", "Lohara", "Lorhi", "Madhupur", "Markundi", "Mubarakpur", "Nagnar Haraiya", "Naibazar", "Nipraj", "Pakari", "Purna", "Rajdhan", "Rajpur", "Raup", "Robertsganj", "SahijanKala", "Salkhan", "Sukrit", "Takiya", "Urmaura/Badhauli"]
+  }
 };
 
-// KPI Indicators Data
 const kpiData = [
     { type: "Productivity", sno: 1, indicator: "No. of OPD Cases per month", mov: "Case specific OPD of pregnant mothers, neonate, infant, children, adolescent, FP and CD" },
     { type: "Productivity", sno: 2, indicator: "No. of follow up cases (repeat visit) per month", mov: "Case specific OPD of pregnant mothers, neonate, infant, children, adolescent, FP and CD" },
@@ -288,30 +384,154 @@ const kpiData = [
 ];
 
 let currentUserSession = null;
+let reportModalInstance = null;
+let currentCompileFacilities = []; // For download excel export
 
-// Populate Dropdowns
+window.onload = function() {
+    initDropdowns();
+    renderTable();
+    reportModalInstance = new bootstrap.Modal(document.getElementById('viewReportModal'));
+};
+
 function initDropdowns() {
-    const blockSelect = document.getElementById('blockName');
-    const loginBlockSelect = document.getElementById('loginBlock');
-    const adminBlockFilter = document.getElementById('adminBlockFilter');
+    const districtSelect = document.getElementById('districtName');
+    const loginDistrictSelect = document.getElementById('loginDistrict');
+    const adminDistrictFilter = document.getElementById('adminDistrictFilter');
     
-    blockSelect.innerHTML = '<option value="">Select Block</option>';
-    loginBlockSelect.innerHTML = '<option value="">-- Choose Block --</option>';
-    adminBlockFilter.innerHTML = '<option value="">All Blocks</option>';
+    districtSelect.innerHTML = '<option value="">Select District</option>';
+    loginDistrictSelect.innerHTML = '<option value="">-- Choose District --</option>';
+    adminDistrictFilter.innerHTML = '<option value="">All Districts</option>';
 
-    Object.keys(facilityData).sort().forEach(block => {
-        blockSelect.innerHTML += `<option value="${block}">${block}</option>`;
-        loginBlockSelect.innerHTML += `<option value="${block}">${block}</option>`;
-        adminBlockFilter.innerHTML += `<option value="${block}">${block}</option>`;
+    Object.keys(districtData).sort().forEach(dist => {
+        districtSelect.innerHTML += `<option value="${dist}">${dist}</option>`;
+        loginDistrictSelect.innerHTML += `<option value="${dist}">${dist}</option>`;
+        adminDistrictFilter.innerHTML += `<option value="${dist}">${dist}</option>`;
     });
 
     const today = new Date();
     const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
     document.getElementById('reportMonth').value = currentMonthStr;
     document.getElementById('filterMonth').value = currentMonthStr;
+    document.getElementById('viewReportMonthPicker').value = currentMonthStr;
 }
 
-// Toggle Login Form Fields
+function initCompileFilters() {
+    const compileDistrict = document.getElementById('compileDistrict');
+    compileDistrict.innerHTML = '<option value="">-- Choose District --</option>';
+    Object.keys(districtData).sort().forEach(dist => {
+        compileDistrict.innerHTML += `<option value="${dist}">${dist}</option>`;
+    });
+
+    const today = new Date();
+    const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    if(!document.getElementById('compileMonth').value) {
+        document.getElementById('compileMonth').value = currentMonthStr;
+    }
+}
+
+function onCompileDistrictChange() {
+    const dist = document.getElementById('compileDistrict').value;
+    const compileBlock = document.getElementById('compileBlock');
+    compileBlock.innerHTML = '<option value="">All Blocks in District</option>';
+
+    if (dist && districtData[dist]) {
+        Object.keys(districtData[dist]).sort().forEach(block => {
+            compileBlock.innerHTML += `<option value="${block}">${block}</option>`;
+        });
+    }
+}
+
+function onLoginDistrictChange() {
+    const dist = document.getElementById('loginDistrict').value;
+    const blockSelect = document.getElementById('loginBlock');
+    const facSelect = document.getElementById('loginFacility');
+    
+    blockSelect.innerHTML = '<option value="">-- Choose Block --</option>';
+    facSelect.innerHTML = '<option value="">-- Choose Block First --</option>';
+    facSelect.disabled = true;
+
+    if (dist && districtData[dist]) {
+        Object.keys(districtData[dist]).sort().forEach(block => {
+            blockSelect.innerHTML += `<option value="${block}">${block}</option>`;
+        });
+        blockSelect.disabled = false;
+    } else {
+        blockSelect.disabled = true;
+    }
+}
+
+function onLoginBlockChange() {
+    const dist = document.getElementById('loginDistrict').value;
+    const block = document.getElementById('loginBlock').value;
+    const facSelect = document.getElementById('loginFacility');
+    
+    facSelect.innerHTML = '<option value="">-- Choose Subcenter --</option>';
+    if (dist && block && districtData[dist] && districtData[dist][block]) {
+        districtData[dist][block].forEach(sc => {
+            facSelect.innerHTML += `<option value="${sc}">${sc}</option>`;
+        });
+        facSelect.disabled = false;
+    } else {
+        facSelect.disabled = true;
+    }
+}
+
+function onDistrictChange() {
+    const dist = document.getElementById('districtName').value;
+    const blockSelect = document.getElementById('blockName');
+    const scSelect = document.getElementById('subcenterName');
+    
+    blockSelect.innerHTML = '<option value="">Select Block</option>';
+    scSelect.innerHTML = '<option value="">Select Block First</option>';
+    scSelect.disabled = true;
+
+    if (dist && districtData[dist]) {
+        Object.keys(districtData[dist]).sort().forEach(block => {
+            blockSelect.innerHTML += `<option value="${block}">${block}</option>`;
+        });
+        blockSelect.disabled = false;
+    } else {
+        blockSelect.disabled = true;
+    }
+}
+
+function onBlockChange() {
+    const dist = document.getElementById('districtName').value;
+    const block = document.getElementById('blockName').value;
+    const scSelect = document.getElementById('subcenterName');
+    
+    scSelect.innerHTML = '<option value="">Select Subcenter</option>';
+    if (dist && block && districtData[dist] && districtData[dist][block]) {
+        districtData[dist][block].forEach(sc => {
+            scSelect.innerHTML += `<option value="${sc}">${sc}</option>`;
+        });
+        scSelect.disabled = false;
+    } else {
+        scSelect.disabled = true;
+    }
+}
+
+function onAdminDistrictFilterChange() {
+    const dist = document.getElementById('adminDistrictFilter').value;
+    const blockFilter = document.getElementById('adminBlockFilter');
+    
+    blockFilter.innerHTML = '<option value="">All Blocks</option>';
+    if (dist && districtData[dist]) {
+        Object.keys(districtData[dist]).sort().forEach(block => {
+            blockFilter.innerHTML += `<option value="${block}">${block}</option>`;
+        });
+    } else {
+        let allBlocks = new Set();
+        Object.keys(districtData).forEach(d => {
+            Object.keys(districtData[d]).forEach(b => allBlocks.add(b));
+        });
+        Array.from(allBlocks).sort().forEach(b => {
+            blockFilter.innerHTML += `<option value="${b}">${b}</option>`;
+        });
+    }
+    loadDashboard();
+}
+
 function toggleRoleFields() {
     const role = document.querySelector('input[name="loginRole"]:checked').value;
     const facFields = document.getElementById('facilityLoginFields');
@@ -327,39 +547,6 @@ function toggleRoleFields() {
     }
 }
 
-// Login Block Change
-function onLoginBlockChange() {
-    const block = document.getElementById('loginBlock').value;
-    const facSelect = document.getElementById('loginFacility');
-    
-    facSelect.innerHTML = '<option value="">-- Choose Subcenter --</option>';
-    if (block && facilityData[block]) {
-        facilityData[block].forEach(sc => {
-            facSelect.innerHTML += `<option value="${sc}">${sc}</option>`;
-        });
-        facSelect.disabled = false;
-    } else {
-        facSelect.disabled = true;
-    }
-}
-
-// Dependent Dropdown Change Listener (Form)
-function onBlockChange() {
-    const block = document.getElementById('blockName').value;
-    const scSelect = document.getElementById('subcenterName');
-    
-    scSelect.innerHTML = '<option value="">Select Subcenter</option>';
-    if (block && facilityData[block]) {
-        facilityData[block].forEach(sc => {
-            scSelect.innerHTML += `<option value="${sc}">${sc}</option>`;
-        });
-        scSelect.disabled = false;
-    } else {
-        scSelect.disabled = true;
-    }
-}
-
-// Handle Login Event
 function handleLogin(e) {
     e.preventDefault();
     const role = document.querySelector('input[name="loginRole"]:checked').value;
@@ -367,12 +554,13 @@ function handleLogin(e) {
     alertBox.classList.add('d-none');
 
     if (role === 'facility') {
+        const district = document.getElementById('loginDistrict').value;
         const block = document.getElementById('loginBlock').value;
         const facility = document.getElementById('loginFacility').value;
         const pass = document.getElementById('facilityPassword').value;
 
-        if (!block || !facility) {
-            alertBox.innerText = "कृपया ब्लॉक और फ़ैसिलिटी चुनें!";
+        if (!district || !block || !facility) {
+            alertBox.innerText = "कृपया ज़िला, ब्लॉक और फ़ैसिलिटी चुनें!";
             alertBox.classList.remove('d-none');
             return;
         }
@@ -382,7 +570,7 @@ function handleLogin(e) {
             return;
         }
 
-        currentUserSession = { role: 'facility', block: block, subcenter: facility };
+        currentUserSession = { role: 'facility', district: district, block: block, subcenter: facility };
         setupAppForSession();
 
     } else if (role === 'admin') {
@@ -399,7 +587,6 @@ function handleLogin(e) {
     }
 }
 
-// Setup App State according to logged in role
 function setupAppForSession() {
     document.getElementById('loginSection').style.display = 'none';
     document.getElementById('appSection').style.display = 'block';
@@ -407,17 +594,22 @@ function setupAppForSession() {
     const userLabel = document.getElementById('currentUserLabel');
     const entryTabLi = document.getElementById('entryTabLi');
     const adminTabLi = document.getElementById('adminTabLi');
+    const compileTabLi = document.getElementById('compileTabLi');
 
     if (currentUserSession.role === 'facility') {
-        userLabel.innerText = `🏥 Facility: ${currentUserSession.subcenter} (${currentUserSession.block})`;
+        userLabel.innerText = `🏥 Facility: ${currentUserSession.subcenter} (${currentUserSession.block}, ${currentUserSession.district})`;
         
         entryTabLi.style.display = 'block';
-        adminTabLi.style.display = 'none'; 
+        adminTabLi.style.display = 'none';
+        compileTabLi.style.display = 'none';
         
+        document.getElementById('districtName').value = currentUserSession.district;
+        onDistrictChange();
         document.getElementById('blockName').value = currentUserSession.block;
         onBlockChange();
         document.getElementById('subcenterName').value = currentUserSession.subcenter;
         
+        document.getElementById('districtName').disabled = true;
         document.getElementById('blockName').disabled = true;
         document.getElementById('subcenterName').disabled = true;
 
@@ -429,15 +621,15 @@ function setupAppForSession() {
         
         entryTabLi.style.display = 'none';
         adminTabLi.style.display = 'block';
+        compileTabLi.style.display = 'block';
 
         const adminTabBtn = new bootstrap.Tab(document.getElementById('admin-tab'));
         adminTabBtn.show();
         
-        loadDashboard();
+        onAdminDistrictFilterChange();
     }
 }
 
-// Logout Handler
 function handleLogout() {
     currentUserSession = null;
     document.getElementById('loginForm').reset();
@@ -446,7 +638,6 @@ function handleLogout() {
     toggleRoleFields();
 }
 
-// Render Table - MANDATORY ALL INPUT FIELDS (`required` added)
 function renderTable() {
     const tbody = document.getElementById('indicatorsTableBody');
     tbody.innerHTML = '';
@@ -466,6 +657,7 @@ function renderTable() {
 }
 
 function getFormData() {
+    const districtName = document.getElementById('districtName').value;
     const blockName = document.getElementById('blockName').value;
     const subcenterName = document.getElementById('subcenterName').value;
     const reportMonth = document.getElementById('reportMonth').value;
@@ -478,10 +670,171 @@ function getFormData() {
         value: document.getElementById(`val_${item.sno}`).value
     }));
 
-    return { blockName, subcenterName, reportMonth, values, submittedAt: new Date().toLocaleString() };
+    return { districtName, blockName, subcenterName, reportMonth, values, submittedAt: new Date().toLocaleString() };
 }
 
-// Form Submit & Blank/Reset Form Implementation
+// PRINT / VIEW REPORT FUNCTION
+function createPrintableReportWindow(data, pageTitle) {
+    let tableRowsHTML = '';
+    data.values.forEach(item => {
+        const pageBreakClass = (item.sno === 15) ? 'page-break-row' : '';
+        tableRowsHTML += `
+            <tr class="${pageBreakClass}">
+                <td style="text-align:center; font-weight:bold;">${item.sno}</td>
+                <td style="font-weight:600; color:#444;">${item.type}</td>
+                <td>${item.indicator}</td>
+                <td style="color:#555;">${item.mov}</td>
+                <td style="text-align:center; font-weight:bold; color:#0d6efd; font-size:14px;">${item.value !== "" ? item.value : "-"}</td>
+            </tr>
+        `;
+    });
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>${pageTitle} - ${data.subcenterName}</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <style>
+                body { padding: 15px; font-family: Arial, sans-serif; background-color: #fff; color: #000; }
+                .header { text-align: center; margin-bottom: 12px; border-bottom: 2px solid #0d6efd; padding-bottom: 6px; }
+                .header h3 { font-size: 20px; margin: 0; font-weight: bold; }
+                .header h5 { font-size: 15px; margin: 4px 0 0 0; color: #333; }
+                .info-bar { font-size: 13px; padding: 8px 12px; background-color: #f1f3f5; border: 1px solid #dee2e6; border-radius: 6px; margin-bottom: 12px; }
+                .print-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+                .print-table th, .print-table td { padding: 6px 8px !important; border: 1px solid #777 !important; vertical-align: middle; }
+                .print-table th { background-color: #343a40 !important; color: #fff !important; text-align: center; font-size: 13px; }
+                .report-footer { margin-top: 60px; width: 100%; page-break-inside: avoid; }
+                .signature-section { float: right; width: 340px; text-align: center; border-top: 1px dashed #444; padding-top: 45px; }
+                @media print {
+                    @page { size: A4 portrait; margin: 10mm; }
+                    html, body { width: 100%; background: #fff; }
+                    .d-print-none { display: none !important; }
+                    .info-bar { background-color: #fff !important; border: 1px solid #000 !important; }
+                    .print-table th { background-color: #eee !important; color: #000 !important; }
+                    .print-table th, .print-table td { font-size: 11.5px !important; padding: 5px 7px !important; }
+                    .page-break-row { page-break-before: always !important; break-before: page !important; }
+                    .report-footer { position: relative; bottom: 0; margin-top: 50px; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container-fluid">
+                <div class="header">
+                    <h3>Ayushman Arogya Mandir - Subcentre</h3>
+                    <h5>Monthly Performance Indicator Report</h5>
+                </div>
+                <div class="row info-bar">
+                    <div class="col-3"><strong>District:</strong> ${data.districtName || '-'}</div>
+                    <div class="col-3"><strong>Block:</strong> ${data.blockName}</div>
+                    <div class="col-3"><strong>AAM-SC:</strong> ${data.subcenterName}</div>
+                    <div class="col-3"><strong>Month:</strong> ${data.reportMonth}</div>
+                </div>
+                <table class="table print-table">
+                    <thead>
+                        <tr>
+                            <th style="width:5%;">#</th>
+                            <th style="width:15%;">Type</th>
+                            <th style="width:40%;">Indicator</th>
+                            <th style="width:30%;">Means of Verification</th>
+                            <th style="width:10%;">Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRowsHTML}
+                    </tbody>
+                </table>
+                <div class="report-footer clearfix">
+                    <div class="signature-section">
+                        <p class="mb-1 fw-bold" style="font-size: 14px;">Signature & Stamp</p>
+                        <p class="mb-0 fw-bold" style="font-size: 15px; color: #000;">Community Health Officer (CHO)</p>
+                        <p class="mb-0 text-dark" style="font-size: 13px;"><strong>AAM-SC ${data.subcenterName}</strong></p>
+                        <p class="mb-0 text-muted" style="font-size: 12px;">(${data.blockName}, ${data.districtName})</p>
+                    </div>
+                </div>
+                <div class="text-center mt-4 d-print-none">
+                    <button class="btn btn-primary fw-bold me-2" onclick="window.print()">🖨️ Print Report</button>
+                    <button class="btn btn-secondary" onclick="window.close()">❌ Close</button>
+                </div>
+            </div>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+}
+
+// MONTH PICKER MODAL OPEN
+function openViewReportModal() {
+    const subcenterName = document.getElementById('subcenterName').value;
+    if (!subcenterName) {
+        alert("कृपया पहले सबसेंटर चुनें!");
+        return;
+    }
+    const currentFormMonth = document.getElementById('reportMonth').value;
+    if(currentFormMonth) {
+        document.getElementById('viewReportMonthPicker').value = currentFormMonth;
+    }
+    reportModalInstance.show();
+}
+
+// CONFIRM MONTH AND VIEW REPORT
+function confirmViewReport() {
+    const subcenterName = document.getElementById('subcenterName').value;
+    const selectedMonth = document.getElementById('viewReportMonthPicker').value;
+
+    if (!selectedMonth) {
+        alert("कृपया महीना चुनें!");
+        return;
+    }
+
+    const submissions = JSON.parse(localStorage.getItem('kpi_submissions') || '[]');
+    let data = submissions.find(s => s.subcenterName.toLowerCase() === subcenterName.toLowerCase() && s.reportMonth === selectedMonth);
+
+    if (!data) {
+        const currentFormMonth = document.getElementById('reportMonth').value;
+        if (selectedMonth === currentFormMonth) {
+            const currentData = getFormData();
+            const hasValues = currentData.values.some(v => v.value !== "");
+            if (hasValues) {
+                data = currentData;
+                data.submittedAt = "Preview (Not Submitted Yet)";
+            }
+        }
+    }
+
+    if (!data) {
+        alert(`सबसेंटर ${subcenterName} की महीने (${selectedMonth}) के लिए कोई रिपोर्ट नहीं मिली!`);
+        return;
+    }
+
+    reportModalInstance.hide();
+    createPrintableReportWindow(data, `Report (${selectedMonth})`);
+}
+
+function viewSubmittedForm(subcenterName, month) {
+    const submissions = JSON.parse(localStorage.getItem('kpi_submissions') || '[]');
+    const data = submissions.find(s => s.subcenterName.toLowerCase() === subcenterName.toLowerCase() && s.reportMonth === month);
+
+    if (!data) {
+        alert("सबमिट किया गया फ़ॉर्म नहीं मिला!");
+        return;
+    }
+
+    createPrintableReportWindow(data, "Submitted KPI Form");
+}
+
+function deleteSubmittedForm(subcenterName, month) {
+    if (confirm(`क्या आप सबसेंटर ${subcenterName} का महीने (${month}) का डेटा हटाना (Delete) चाहते हैं?`)) {
+        let submissions = JSON.parse(localStorage.getItem('kpi_submissions') || '[]');
+        submissions = submissions.filter(s => !(s.subcenterName.toLowerCase() === subcenterName.toLowerCase() && s.reportMonth === month));
+        localStorage.setItem('kpi_submissions', JSON.stringify(submissions));
+        alert("डेटा सफलतापूर्वक डिलीट कर दिया गया है!");
+        loadDashboard();
+    }
+}
+
+// Form Submit
 document.getElementById('kpiForm').addEventListener('submit', function(e) {
     e.preventDefault();
     
@@ -494,7 +847,6 @@ document.getElementById('kpiForm').addEventListener('submit', function(e) {
     localStorage.setItem('kpi_submissions', JSON.stringify(submissions));
     alert(`डेटा (${data.subcenterName}) सफलतापूर्वक सबमिट हो गया है!`);
 
-    // Reset Form Inputs (Clear values)
     kpiData.forEach(item => {
         const input = document.getElementById(`val_${item.sno}`);
         if (input) input.value = '';
@@ -509,33 +861,9 @@ function saveLocally() {
     alert('ड्राफ्ट सफलता से सेव हो गया!');
 }
 
-function exportToExcel() {
-    const data = getFormData();
-    if(!data.blockName || !data.subcenterName) {
-        alert("कृपया ब्लॉक और सबसेंटर चुनें!");
-        return;
-    }
-    const rows = [
-        ["Block Name", data.blockName],
-        ["AAM-SC Name", data.subcenterName],
-        ["Reporting Month", data.reportMonth],
-        [],
-        ["Type", "S.No.", "Indicators", "Means of Verification", "Value in Numbers/%"]
-    ];
-
-    data.values.forEach(v => {
-        rows.push([v.type, v.sno, v.indicator, v.mov, v.value]);
-    });
-
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "KPI Reporting");
-    XLSX.writeFile(wb, `KPI_Report_${data.subcenterName}_${data.reportMonth}.xlsx`);
-}
-
-// Admin Dashboard Load
 function loadDashboard() {
     const selectedMonth = document.getElementById('filterMonth').value;
+    const selectedDistrictFilter = document.getElementById('adminDistrictFilter').value;
     const selectedBlockFilter = document.getElementById('adminBlockFilter').value;
     const submissions = JSON.parse(localStorage.getItem('kpi_submissions') || '[]');
 
@@ -547,39 +875,45 @@ function loadDashboard() {
     let pendingCount = 0;
 
     let index = 1;
-    Object.keys(facilityData).forEach(block => {
-        if (selectedBlockFilter && selectedBlockFilter !== block) return;
+    Object.keys(districtData).forEach(dist => {
+        if (selectedDistrictFilter && selectedDistrictFilter !== dist) return;
 
-        facilityData[block].forEach(sc => {
-            totalCount++;
-            const submission = submissions.find(s => 
-                s.subcenterName.toLowerCase() === sc.toLowerCase() && 
-                s.reportMonth === selectedMonth
-            );
+        Object.keys(districtData[dist]).forEach(block => {
+            if (selectedBlockFilter && selectedBlockFilter !== block) return;
 
-            const isSubmitted = !!submission;
-            if (isSubmitted) submittedCount++;
-            else pendingCount++;
+            districtData[dist][block].forEach(sc => {
+                totalCount++;
+                const submission = submissions.find(s => 
+                    s.subcenterName.toLowerCase() === sc.toLowerCase() && 
+                    s.reportMonth === selectedMonth
+                );
 
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${index++}</td>
-                <td>${block}</td>
-                <td class="fw-bold">${sc}</td>
-                <td>
-                    ${isSubmitted 
-                        ? '<span class="badge bg-success fs-6">Submitted</span>' 
-                        : '<span class="badge bg-danger fs-6">Pending</span>'}
-                </td>
-                <td>${isSubmitted ? submission.submittedAt : '-'}</td>
-                <td class="text-center">
-                    ${isSubmitted 
-                        ? `<button class="btn btn-sm btn-success me-1" onclick="viewSubmittedForm('${sc}', '${selectedMonth}')">👁️ View</button>
-                           <button class="btn btn-sm btn-warning fw-bold" onclick="editSubmittedForm('${sc}', '${selectedMonth}')">✏️ Edit Form</button>` 
-                        : '-'}
-                </td>
-            `;
-            tbody.appendChild(row);
+                const isSubmitted = !!submission;
+                if (isSubmitted) submittedCount++;
+                else pendingCount++;
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${index++}</td>
+                    <td>${dist}</td>
+                    <td>${block}</td>
+                    <td class="fw-bold">${sc}</td>
+                    <td>
+                        ${isSubmitted 
+                            ? '<span class="badge bg-success fs-6">Submitted</span>' 
+                            : '<span class="badge bg-danger fs-6">Pending</span>'}
+                    </td>
+                    <td>${isSubmitted ? submission.submittedAt : '-'}</td>
+                    <td class="text-center">
+                        ${isSubmitted 
+                            ? `<button class="btn btn-sm btn-success me-1" onclick="viewSubmittedForm('${sc}', '${selectedMonth}')">👁️ View</button>
+                               <button class="btn btn-sm btn-warning fw-bold me-1" onclick="editSubmittedForm('${sc}', '${selectedMonth}')">✏️ Edit</button>
+                               <button class="btn btn-sm btn-danger fw-bold" onclick="deleteSubmittedForm('${sc}', '${selectedMonth}')">🗑️ Delete</button>` 
+                            : '-'}
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
         });
     });
 
@@ -588,243 +922,209 @@ function loadDashboard() {
     document.getElementById('pendingCount').innerText = pendingCount;
 }
 
-// Open Submitted Form in a New Tab (Read-only / Printable)
-function viewSubmittedForm(subcenterName, month) {
-    const submissions = JSON.parse(localStorage.getItem('kpi_submissions') || '[]');
-    const data = submissions.find(s => s.subcenterName.toLowerCase() === subcenterName.toLowerCase() && s.reportMonth === month);
-
-    if (!data) {
-        alert("सबमिट किया गया फ़ॉर्म नहीं मिला!");
-        return;
-    }
-
-    let tableRowsHTML = '';
-    data.values.forEach(item => {
-        tableRowsHTML += `
-            <tr>
-                <td style="text-align:center; font-weight:bold;">${item.sno}</td>
-                <td style="font-weight:600; color:#555;">${item.type}</td>
-                <td>${item.indicator}</td>
-                <td style="font-size:0.9em; color:#666;">${item.mov}</td>
-                <td style="text-align:center; font-weight:bold; color:#0d6efd; background-color:#f8f9fa;">${item.value !== "" ? item.value : "-"}</td>
-            </tr>
-        `;
-    });
-
-    const viewWindow = window.open('', '_blank');
-    viewWindow.document.write(`
-        <!DOCTYPE html>
-        <html lang="hi">
-        <head>
-            <title>Submitted Form - ${data.subcenterName} (${data.reportMonth})</title>
-            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-            <style>
-                body { padding: 30px; background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-                .report-header { background: #0d6efd; color: white; padding: 20px; border-radius: 8px; margin-bottom: 25px; }
-                .info-card { background: white; padding: 15px 20px; border-radius: 8px; border-left: 5px solid #0d6efd; margin-bottom: 25px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-                .table-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-                @media print {
-                    .no-print { display: none; }
-                    body { padding: 0; background-color: white; }
-                    .table-container { box-shadow: none; padding: 0; }
-                }
-            </style>
-        </head>
-        <body>
-            <div class="container-fluid">
-                <div class="d-flex justify-content-between align-items-center mb-3 no-print">
-                    <span class="badge bg-success fs-6">✓ Submitted Record</span>
-                    <div>
-                        <button class="btn btn-primary me-2" onclick="window.print()">🖨️ Print Form</button>
-                        <button class="btn btn-secondary" onclick="window.close()">❌ Close Tab</button>
-                    </div>
-                </div>
-
-                <div class="report-header text-center">
-                    <h2>Ayushman Arogya Mandir - Subcentre (AAM-SC)</h2>
-                    <h4>Submitted Key Performance Indicators Report</h4>
-                </div>
-
-                <div class="info-card">
-                    <div class="row">
-                        <div class="col-md-3"><strong>Block Name:</strong> ${data.blockName}</div>
-                        <div class="col-md-4"><strong>Subcenter (AAM-SC):</strong> ${data.subcenterName}</div>
-                        <div class="col-md-3"><strong>Reporting Month:</strong> ${data.reportMonth}</div>
-                        <div class="col-md-2"><strong>Submitted At:</strong> ${data.submittedAt}</div>
-                    </div>
-                </div>
-
-                <div class="table-container">
-                    <table class="table table-bordered table-striped align-middle">
-                        <thead class="table-dark text-center">
-                            <tr>
-                                <th style="width: 5%;">S.No.</th>
-                                <th style="width: 15%;">Type</th>
-                                <th style="width: 40%;">Indicator</th>
-                                <th style="width: 25%;">Means of Verification</th>
-                                <th style="width: 15%;">Submitted Value</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${tableRowsHTML}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </body>
-        </html>
-    `);
-    viewWindow.document.close();
-}
-
-// EDIT Submitted Form Function (Admin Only)
 function editSubmittedForm(subcenterName, month) {
     const submissions = JSON.parse(localStorage.getItem('kpi_submissions') || '[]');
     const data = submissions.find(s => s.subcenterName.toLowerCase() === subcenterName.toLowerCase() && s.reportMonth === month);
 
-    if (!data) {
-        alert("संशोधित करने के लिए फ़ॉर्म नहीं मिला!");
+    if (!data) return;
+
+    document.getElementById('entryTabLi').style.display = 'block';
+    
+    const entryTabBtn = new bootstrap.Tab(document.getElementById('entry-tab'));
+    entryTabBtn.show();
+
+    document.getElementById('districtName').disabled = false;
+    document.getElementById('blockName').disabled = false;
+    document.getElementById('subcenterName').disabled = false;
+
+    if (data.districtName) {
+        document.getElementById('districtName').value = data.districtName;
+        onDistrictChange();
+    }
+    
+    document.getElementById('blockName').value = data.blockName;
+    onBlockChange();
+    document.getElementById('subcenterName').value = data.subcenterName;
+    document.getElementById('reportMonth').value = data.reportMonth;
+
+    data.values.forEach(item => {
+        const input = document.getElementById(`val_${item.sno}`);
+        if (input) input.value = item.value;
+    });
+
+    alert(`Form for ${subcenterName} loaded for editing.`);
+}
+
+// GENERATE COMPILED WIDE TABLE REPORT
+function generateCompiledReport() {
+    const month = document.getElementById('compileMonth').value;
+    const district = document.getElementById('compileDistrict').value;
+    const blockFilter = document.getElementById('compileBlock').value;
+    const container = document.getElementById('compileResultContainer');
+
+    if (!district || !month) {
+        alert("कृपया ज़िला और रिपोर्टिंग महीना दोनों चुनें!");
         return;
     }
 
-    let editRowsHTML = '';
-    data.values.forEach(item => {
-        editRowsHTML += `
-            <tr>
-                <td class="text-center font-weight-bold">${item.sno}</td>
-                <td class="font-weight-bold text-secondary">${item.type}</td>
-                <td>${item.indicator}</td>
-                <td class="small text-muted">${item.mov}</td>
-                <td>
-                    <input type="number" step="0.01" min="0" class="form-control edit-val-input" data-sno="${item.sno}" value="${item.value}" required>
-                </td>
-            </tr>
-        `;
+    const submissions = JSON.parse(localStorage.getItem('kpi_submissions') || '[]');
+
+    // Get all matching subcenters
+    currentCompileFacilities = [];
+    Object.keys(districtData[district]).forEach(block => {
+        if (blockFilter && blockFilter !== block) return;
+        districtData[district][block].forEach(sc => {
+            const subData = submissions.find(s => s.subcenterName.toLowerCase() === sc.toLowerCase() && s.reportMonth === month);
+            currentCompileFacilities.push({
+                blockName: block,
+                subcenterName: sc,
+                submission: subData || null
+            });
+        });
     });
 
-    const editWindow = window.open('', '_blank');
-    editWindow.document.write(`
+    if (currentCompileFacilities.length === 0) {
+        container.innerHTML = `<div class="alert alert-warning">इस फ़िल्टर के अंतर्गत कोई सबसेंटर नहीं मिला।</div>`;
+        return;
+    }
+
+    // Build Wide Table HTML (Indicators as rows, Subcenters as columns)
+    let tableHTML = `
+        <div class="card shadow-sm mb-5">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <span><strong>Compiled Report:</strong> ${district} ${blockFilter ? '('+blockFilter+')' : ''} | Month: ${month}</span>
+                <div>
+                    <button class="btn btn-sm btn-success fw-bold me-2" onclick="downloadCompileExcel()">📥 Download Excel</button>
+                    <button class="btn btn-sm btn-light fw-bold" onclick="printCompileReport()">🖨️ Print / Save PDF</button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" id="printableCompileArea" style="max-height: 600px; overflow-y: auto;">
+                    <table class="table table-bordered table-striped table-hover mb-0 text-center align-middle" style="font-size: 12px; white-space: nowrap;">
+                        <thead class="table-dark sticky-top">
+                            <tr>
+                                <th style="position: sticky; left: 0; background: #212529; z-index: 3;">S.No.</th>
+                                <th style="position: sticky; left: 45px; background: #212529; z-index: 3;">Type</th>
+                                <th style="position: sticky; left: 160px; background: #212529; z-index: 3; text-align: left; min-width: 250px;">Indicator Name</th>
+    `;
+
+    currentCompileFacilities.forEach(f => {
+        tableHTML += `<th style="min-width: 130px;" title="${f.subcenterName} (${f.blockName})">${f.subcenterName}<br><small class="text-light fw-normal">(${f.blockName})</small></th>`;
+    });
+
+    tableHTML += `</tr></thead><tbody>`;
+
+    kpiData.forEach(kpi => {
+        tableHTML += `
+            <tr>
+                <td style="position: sticky; left: 0; background: #fff; font-weight: bold;">${kpi.sno}</td>
+                <td style="position: sticky; left: 45px; background: #fff; color: #555;">${kpi.type}</td>
+                <td style="position: sticky; left: 160px; background: #fff; text-align: left;" class="fw-semibold">${kpi.indicator}</td>
+        `;
+
+        currentCompileFacilities.forEach(f => {
+            let val = "-";
+            if (f.submission && f.submission.values) {
+                const foundVal = f.submission.values.find(v => Number(v.sno) === Number(kpi.sno));
+                if (foundVal && foundVal.value !== "") {
+                    val = foundVal.value;
+                }
+            }
+            tableHTML += `<td class="${val === '-' ? 'text-muted' : 'fw-bold text-primary'}">${val}</td>`;
+        });
+
+        tableHTML += `</tr>`;
+    });
+
+    tableHTML += `</tbody></table></div></div></div>`;
+    container.innerHTML = tableHTML;
+}
+
+// DOWNLOAD COMPILED REPORT AS EXCEL (CSV)
+function downloadCompileExcel() {
+    const month = document.getElementById('compileMonth').value;
+    const district = document.getElementById('compileDistrict').value;
+    const blockFilter = document.getElementById('compileBlock').value;
+
+    let csvRows = [];
+    
+    // Header Row 1: Facility names
+    let headerRow = ["S.No.", "Type", "Indicator Name"];
+    currentCompileFacilities.forEach(f => {
+        headerRow.push(`"${f.subcenterName} (${f.blockName})"`);
+    });
+    csvRows.push(headerRow.join(","));
+
+    // Rows for each indicator
+    kpiData.forEach(kpi => {
+        let rowData = [kpi.sno, `"${kpi.type}"`, `"${kpi.indicator.replace(/"/g, '""')}"`];
+        
+        currentCompileFacilities.forEach(f => {
+            let val = "";
+            if (f.submission && f.submission.values) {
+                const foundVal = f.submission.values.find(v => Number(v.sno) === Number(kpi.sno));
+                if (foundVal && foundVal.value !== "") {
+                    val = foundVal.value;
+                }
+            }
+            rowData.push(`"${val}"`);
+        });
+        csvRows.push(rowData.join(","));
+    });
+
+    const csvString = csvRows.join("\n");
+    const blob = new Blob(["\uFEFF" + csvString], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Compile_Report_${district}_${blockFilter ? blockFilter + '_' : ''}${month}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function printCompileReport() {
+    const compileContent = document.getElementById('printableCompileArea').innerHTML;
+    const month = document.getElementById('compileMonth').value;
+    const district = document.getElementById('compileDistrict').value;
+    const blockFilter = document.getElementById('compileBlock').value;
+
+    const printWin = window.open('', '_blank');
+    printWin.document.write(`
         <!DOCTYPE html>
-        <html lang="hi">
+        <html>
         <head>
-            <title>Edit Form - ${data.subcenterName} (${data.reportMonth})</title>
+            <title>Compiled Report - ${district} (${month})</title>
             <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
             <style>
-                body { padding: 30px; background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-                .report-header { background: linear-gradient(135deg, #ffc107, #fd7e14); color: #000; padding: 20px; border-radius: 8px; margin-bottom: 25px; }
-                .info-card { background: white; padding: 15px 20px; border-radius: 8px; border-left: 5px solid #ffc107; margin-bottom: 25px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-                .table-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+                body { font-family: Arial, sans-serif; padding: 10px; color: #000; }
+                h3, h5 { text-align: center; margin: 0; }
+                .table-bordered th, .table-bordered td { border: 1px solid #777 !important; padding: 5px !important; font-size: 11px; }
+                @media print {
+                    @page { size: landscape; margin: 5mm; }
+                    .table-dark { background-color: #343a40 !important; color: #white !important; -webkit-print-color-adjust: exact; }
+                }
             </style>
         </head>
         <body>
-            <div class="container-fluid">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <span class="badge bg-warning text-dark fs-6">✏️ Admin Edit Mode</span>
-                    <button class="btn btn-secondary" onclick="window.close()">❌ Cancel & Close</button>
-                </div>
-
-                <div class="report-header text-center">
-                    <h2>Ayushman Arogya Mandir - Subcentre (AAM-SC)</h2>
-                    <h4>Edit / Update Subcenter Data (Admin Portal)</h4>
-                </div>
-
-                <div class="info-card">
-                    <div class="row">
-                        <div class="col-md-3"><strong>Block Name:</strong> ${data.blockName}</div>
-                        <div class="col-md-4"><strong>Subcenter (AAM-SC):</strong> ${data.subcenterName}</div>
-                        <div class="col-md-3"><strong>Reporting Month:</strong> ${data.reportMonth}</div>
-                        <div class="col-md-2"><strong>Originally Submitted:</strong> ${data.submittedAt}</div>
-                    </div>
-                </div>
-
-                <form id="editForm">
-                    <div class="table-container mb-4">
-                        <table class="table table-bordered align-middle">
-                            <thead class="table-dark text-center">
-                                <tr>
-                                    <th style="width: 5%;">S.No.</th>
-                                    <th style="width: 15%;">Type</th>
-                                    <th style="width: 35%;">Indicator</th>
-                                    <th style="width: 25%;">Means of Verification</th>
-                                    <th style="width: 20%;">Edit Value (Numbers / %)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${editRowsHTML}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="text-end mb-5">
-                        <button type="button" class="btn btn-success btn-lg fw-bold px-4" onclick="saveAdminEdits()">💾 Save Changes & Update</button>
-                    </div>
-                </form>
+            <h3>Ayushman Arogya Mandir - Subcentre Portal</h3>
+            <h5>District Compile Report: ${district} ${blockFilter ? '- Block: ' + blockFilter : ''} (Month: ${month})</h5>
+            <hr>
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped text-center align-middle">
+                    ${compileContent}
+                </table>
             </div>
-
             <script>
-                function saveAdminEdits() {
-                    const inputs = document.querySelectorAll('.edit-val-input');
-                    let updatedValues = [];
-                    let isValid = true;
-
-                    inputs.forEach(input => {
-                        if (input.value === "") {
-                            isValid = false;
-                        }
-                        const sno = parseInt(input.getAttribute('data-sno'));
-                        const originalObj = ${JSON.stringify(data.values)}.find(v => v.sno === sno);
-                        updatedValues.push({
-                            sno: sno,
-                            type: originalObj.type,
-                            indicator: originalObj.indicator,
-                            mov: originalObj.mov,
-                            value: input.value
-                        });
-                    });
-
-                    if (!isValid) {
-                        alert("कृपया सभी फ़ील्ड्स में सही संख्या भरें!");
-                        return;
-                    }
-
-                    // Get submissions from opener's window or localstorage
-                    let submissions = JSON.parse(localStorage.getItem('kpi_submissions') || '[]');
-                    submissions = submissions.filter(s => !(s.subcenterName.toLowerCase() === "${data.subcenterName.toLowerCase()}" && s.reportMonth === "${data.reportMonth}"));
-                    
-                    const updatedRecord = {
-                        blockName: "${data.blockName}",
-                        subcenterName: "${data.subcenterName}",
-                        reportMonth: "${data.reportMonth}",
-                        values: updatedValues,
-                        submittedAt: new Date().toLocaleString() + " (Edited by Admin)"
-                    };
-
-                    submissions.push(updatedRecord);
-                    localStorage.setItem('kpi_submissions', JSON.stringify(submissions));
-
-                    alert("डेटा सफलतापूर्वक अपडेट कर दिया गया है!");
-                    if (window.opener && !window.opener.closed) {
-                        window.opener.loadDashboard();
-                    }
-                    window.close();
-                }
+                setTimeout(() => { window.print(); window.close(); }, 500);
             <\/script>
         </body>
         </html>
     `);
-    editWindow.document.close();
+    printWin.document.close();
 }
-
-function clearData() {
-    if(confirm("क्या आप सारा सबमिट किया गया डेटा रीसेट करना चाहते हैं?")) {
-        localStorage.removeItem('kpi_submissions');
-        loadDashboard();
-    }
-}
-
-// Initialization
-initDropdowns();
-renderTable();
 </script>
 
 </body>
